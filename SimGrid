@@ -1,0 +1,251 @@
+ import javafx.scene.layout.Pane; 	
+ import javafx.scene.paint.Color;
+ import java.util.ArrayList;
+ import java.util.Random;
+ 
+ /**	  	
+  * Part of the solution to Project 4.  	
+  *
+  * Represents the grid of agents in the Schelling Simulation.	  	
+  * 
+  * @author lewis63 and kayanat  	
+  * @version 2018.04.11
+  */
+ public class SimGrid extends Pane  	
+ {
+     private Agent[][] grid;	  	
+     private Random gen;
+     private int numCells;
+     private double satisfiedPercent;
+    
+     // satisfaction threshold of 30%  	
+     private final static double THRESHOLD = 0.3;  
+ 
+     /**	  	
+      * Creates and initializes an agent grid of the specified size.
+      * 
+      * @param rows the number of rows in the simulation grid
+      * @param cols the number of cols in the simulation grid
+      */
+     public SimGrid(int rows, int cols)
+     {
+         gen = new Random();	
+         
+         numCells = rows * cols;
+         
+         grid = new Agent[rows][cols];
+         initializeGrid();
+         
+         // set initial satisfaction percentage
+         ArrayList<GridLocation> unsatisfied = findUnsatisfiedAgents();
+         satisfiedPercent = (numCells - unsatisfied.size()) / (double) numCells
+             * 100;
+     }
+ 	
+     /**	  	
+      * Fills the grid with an initial, random set of agents and vacant spaces.
+      * Approximately 10% of the grid locations are left vacant. The rest are
+      * evenly distributed between red and blue agents.
+      */
+     public void initializeGrid()
+     {
+         grid = new Agent[grid.length][grid[0].length];	
+         int color = 0;
+         //going through each agent and changing it to either white, red, or blue
+         for (int row = 0; row < grid.length; row++)
+         {
+             for (int col = 0; col < grid[0].length; col++)
+             {
+                 color = gen.nextInt(10);
+                 if (color == 1)
+                 {
+                     grid[row][col] = new Agent(row, col, Color.WHITE);
+                 }
+                 else if (gen.nextInt(2) == 0)
+                 {
+                     grid[row][col] = new Agent(row, col, Color.RED);
+                 }
+                 else
+                 {
+                     grid[row][col] = new Agent(row, col, Color.BLUE);
+                 }
+                 getChildren().add(grid[row][col].getSquare());
+             }
+         }
+     }
+     /**	
+      * Gets the current percentage of satisfied agents in the grid.
+      * 
+      * @return the percentage of satisfied agents in the simulation
+      */
+     public double getSatisfiedPercent()
+     {
+         return satisfiedPercent;	
+     }
+    	
+     /**  	
+      * Performs one step of the simulation by finding the location of all
+      * unsatisfied agents, then moving each one to a randomly chosen vacant
+      * location.
+      * 
+      * @return the number of unsatisfied agents found
+      */
+     public int performSimulationStep()
+     {
+         ArrayList<GridLocation> unsatisfied = findUnsatisfiedAgents();	
+ 
+         for (GridLocation loc : unsatisfied)	  	
+         {
+             GridLocation vacant = findVacantLocation();
+             
+             Agent vacantLoc = grid[vacant.getRow()][vacant.getCol()];
+             Agent unsatisfiedLoc = grid[loc.getRow()][loc.getCol()];
+        	
+             vacantLoc.setColor(unsatisfiedLoc.getColor());  	
+             unsatisfiedLoc.setColor(Color.WHITE);
+         }
+         // update satisfaction percentage
+         satisfiedPercent = (numCells - unsatisfied.size()) / (double) numCells
+             * 100;
+         
+         return unsatisfied.size();	
+     }
+       	
+   	
+     /**	  	
+      * Creates a list of all grid locations that contain an unsatisfied agent.	
+      * 
+      * @return a list of the locations of all currently unsatisfied agents	
+      */
+     private ArrayList<GridLocation> findUnsatisfiedAgents()	
+     {
+         ArrayList<GridLocation> unsatisfied = new ArrayList<GridLocation>();  	
+         
+         for (int i = 0; i < grid.length; i++)	
+         {
+             for (int j = 0; j < grid[0].length; j++)
+                 if (!grid[i][j].isVacant() && !agentIsSatisfied(i, j))
+                 {
+                     GridLocation loc = new GridLocation(i, j); 
+                     //creates a new location
+                     unsatisfied.add(loc); //adds the location to unsatisfied
+                 }
+         }
+         return unsatisfied;
+     }
+      	
+     /**	  	
+      * Determines if the agent at the specified location is satisfied. First	
+      * gets a list of all valid, non-vacant neighbors, then counts the number
+      * of those neighbors that are the same type. An agent is satisfied with
+      * its current location if the ratio of similar agents is greater that
+      * a set threshold.
+      * 
+      * @return true if the agent is satisfied with its current location	
+      */
+     private boolean agentIsSatisfied(int i, int j)	
+     {   
+         ArrayList<Agent> neighbors = getNeighbors(i, j);	
+         
+         int sameCount = 0;	  	
+         Color blank = grid[i][j].getColor();
+         
+         for (Agent current : neighbors)	
+         {
+             if (current.getColor() == blank)
+             {
+                 sameCount++; //increases the count by 1
+             }
+         }
+         
+         return  (double) sameCount / neighbors.size() > THRESHOLD;	
+     }
+       	
+     /**  	
+      * Gets a list of agents that are neighbors (adjacent) to the specified	
+      * grid location. Checks each potential location individually, making sure
+      * that each is valid (on the grid) and not vacant.
+      * 
+      * @return a list of agents that are adjacent to the specified location	
+      */
+     private ArrayList<Agent> getNeighbors(int i, int j)	
+     {
+         ArrayList<Agent> neighbors = new ArrayList<Agent>();  	
+         
+         // check up and left	
+         if (validLocation(i - 1, j - 1) && !grid[i - 1][j - 1].isVacant())
+             neighbors.add(grid[i - 1][j - 1]);
+         //checks everywhere else in the grid
+         if (validLocation(i + 1, j - 1) && !grid[i + 1][j - 1].isVacant())
+             neighbors.add(grid[i + 1][j - 1]);
+             
+         if (validLocation(i - 1, j + 1) && !grid[i - 1][j + 1].isVacant())
+             neighbors.add(grid[i - 1][j + 1]);
+             
+         if (validLocation(i + 1, j + 1) && !grid[i + 1][j + 1].isVacant())
+             neighbors.add(grid[i + 1][j + 1]);
+             
+         if (validLocation(i, j - 1) && !grid[i][j - 1].isVacant())
+             neighbors.add(grid[i][j - 1]);
+             
+         if (validLocation(i - 1, j) && !grid[i - 1][j].isVacant())
+             neighbors.add(grid[i - 1][j]);
+         
+         if (validLocation(i + 1, j) && !grid[i + 1][j].isVacant())	
+             neighbors.add(grid[i + 1][j]);
+             
+         if (validLocation(i, j + 1) && !grid[i][j + 1].isVacant())
+             neighbors.add(grid[i][j + 1]);
+         return neighbors;
+     }
+       	
+     /**  	
+      * Determines if the specified grid location is valid.	
+      * 
+      * @return true if the specified location is a valid grid cell	
+      */
+     private boolean validLocation(int i, int j)	
+     {
+         boolean result = false;  	
+         if (i >= 0 && i < grid.length && j >= 0 && j < grid[0].length)
+         {
+             result = true;
+         }
+         return result;
+     }
+       	
+     /**  	
+      * Finds a vacant location in the simulation grid. Keeps checking cell	
+      * locations at random until a vacant one is found.
+      * 
+      * @return the grid location of a vacant cell	
+      */
+     private GridLocation findVacantLocation()	
+     {
+         int row = gen.nextInt(grid.length);  	
+         int col = gen.nextInt(grid[0].length);
+         while (!grid[row][col].isVacant())
+         {
+             row = gen.nextInt(grid.length);
+             col = gen.nextInt(grid[0].length);
+         }
+         GridLocation loc = new GridLocation(row, col);
+         return loc;
+     }
+       	
+     /**  	
+      * Resets the simulation grid by clearing the pane of agent squares and	
+      * reinitializing the grid.
+      */
+     public void resetGrid()	
+     {
+         getChildren().clear();  	
+         initializeGrid();
+         
+         // set initial satisfaction percentage	
+         ArrayList<GridLocation> unsatisfied = findUnsatisfiedAgents();
+         satisfiedPercent = (numCells - unsatisfied.size()) / (double) numCells
+             * 100;
+     }
+       	
+ }
